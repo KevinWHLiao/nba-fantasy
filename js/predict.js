@@ -124,6 +124,21 @@ const PX = (() => {
     const text = String(name || "").replace(/[*~#&?=]/g, "").trim().slice(0, 16);
     return text || fallback;
   }
+  function adopt(name, code) {
+    if (resultsReady()) return false;
+    const picks = decode(code);
+    if (!picks) return false;
+    state = {
+      v: 1,
+      name: cleanName(name, "我"),
+      color: "#7c5cff",
+      picks: picks.slice(),
+      locked: false,
+      friends: []
+    };
+    save();
+    return true;
+  }
   function create(name, color) {
     if (resultsReady()) return false;
     state = {
@@ -367,7 +382,7 @@ const PX = (() => {
   return {
     get state() { return state; },
     NEED, HOME_SPOTS, AWAY_SPOTS, HOOP,
-    load, create, reset, save, add, remove, move, lock, unlock, frozen,
+    load, create, adopt, reset, save, add, remove, move, lock, unlock, frozen,
     addFriend, removeFriend, encode, decode, normalize, parseLeague, exportLeague, readShare,
     scoreList, leaderboard, baseline, contrastIds, resultsReady, resultsLabel,
     exhibition, initials, lastName, ink, BY

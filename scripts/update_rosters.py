@@ -3,8 +3,9 @@
 
 Existing players keep their ids and 2025-26 per-game rates.
 Their team and age are updated. Players no longer on a roster are removed.
-Missing rotation players and numbered rookies are added. Rookies have no
-2025-26 line, so their rates stay at zero.
+Added players are contracted rotation pieces, numbered rookies, or veterans
+who are on a roster with a jersey even when ESPN has no 2027 salary.
+Rookies have no 2025-26 line, so their rates stay at zero.
 """
 import json
 import re
@@ -40,6 +41,7 @@ FORWARD = {
     "Harrison Barnes": "SF", "Rui Hachimura": "PF", "Jerami Grant": "PF",
     "John Collins": "PF", "Bobby Portis": "PF", "Tobias Harris": "PF",
     "Cameron Boozer": "PF", "AJ Dybantsa": "SF", "Cooper Flagg": "SF",
+    "Ben Simmons": "PF",
 }
 
 
@@ -187,6 +189,10 @@ def load_rosters():
                 "salary": salary_2027(athlete),
                 "years": (athlete.get("experience") or {}).get("years") or 0,
                 "jersey": athlete.get("jersey"),
+                "seasons": [
+                    (contract.get("season") or {}).get("year")
+                    for contract in athlete.get("contracts") or []
+                ],
             })
     if unknown:
         print("unmapped abbreviations", sorted(unknown))
@@ -211,7 +217,13 @@ def stat_line(espn_id):
 def wanted(row):
     if row["salary"] >= 2_000_000:
         return True
-    return row["years"] == 0 and row["jersey"] and 0 < row["age"] <= 21
+    if row["years"] == 0 and row["jersey"] and 0 < row["age"] <= 21:
+        return True
+    if not row["jersey"]:
+        return False
+    if row["years"] >= 4:
+        return True
+    return 2026 in row["seasons"] or 2027 in row["seasons"]
 
 
 def main():

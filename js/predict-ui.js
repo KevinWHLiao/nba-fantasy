@@ -8,7 +8,8 @@ const px = {
   tab: "board",
   opponent: "lastyear",
   open: "me",
-  pending: []
+  pending: [],
+  joined: 0
 };
 const demo = { token: 0, timer: 0, running: false, final: null, log: [], game: null };
 let baseRank = null;
@@ -41,6 +42,7 @@ function bootIncoming() {
   else if (query.get("c") && PX.normalize(query.get("c"))) {
     px.pending = [{ name: (query.get("n") || "朋友").slice(0, 16), code: PX.normalize(query.get("c")) }];
   }
+  if (PX.state && px.pending.length) px.joined = takePending();
 }
 function takePending() {
   if (!PX.state || !px.pending.length) return 0;
@@ -58,6 +60,43 @@ function linkFor(params) {
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
   return url.toString();
 }
+function downloadLeague() {
+  const text = PX.exportLeague();
+  if (!text) {
+    DreamUI.notify("先排滿 10 人，才有整份資料可存。");
+    return;
+  }
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "dream-court-league.txt";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  DreamUI.notify("繼續檔已下載。它和整份排行榜連結是同一份資料。");
+}
+function absorbLeague(text) {
+  const parsed = PX.readShare(String(text || "").trim());
+  const entries = parsed.league
+    ? PX.parseLeague(parsed.league)
+    : (parsed.code && PX.normalize(parsed.code) ? [{ name: parsed.name || "朋友", code: PX.normalize(parsed.code) }] : []);
+  if (!entries.length) {
+    DreamUI.notify("這份資料裡沒有對得上的預測。");
+    return;
+  }
+  px.pending = entries;
+  if (PX.state) {
+    const count = takePending();
+    px.tab = "board";
+    DreamUI.notify(count ? `已接回 ${count} 份預測。你的前十沒有被覆蓋。` : "這些預測已經在榜上。");
+    DreamUI.render();
+    return;
+  }
+  DreamUI.setMode("hub");
+  DreamUI.notify("點你的名字，就能接回那份前十。");
+}
 function copyText(text, ok) {
   if (!text) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -70,10 +109,16 @@ function teamRail() {
   return `<div class="team-rail" aria-hidden="true">${Object.entries(DC.teamMeta).map(([, team]) => `<i style="background:${team.color}"></i>`).join("")}</div>`;
 }
 function pendingBanner() {
+  if (px.joined) {
+    const count = px.joined;
+    px.joined = 0;
+    return `<div class="panel notice"><b>已接回 ${count} 份原本的預測</b><p class="muted">你的前十沒有被覆蓋。之後換手機或清掉瀏覽器，用同一條排行榜連結或繼續檔，再點一次自己的名字就能接回去。</p></div>`;
+  }
   if (!px.pending.length) return "";
   const names = px.pending.map((entry) => esc(entry.name)).join("、");
   if (!PX.state) {
-    return `<div class="panel notice"><b>朋友傳來 ${px.pending.length} 份預測</b><p>${names}</p><p class="muted">填好你的名字並開始之後，這些預測會一起放進排行榜。</p></div>`;
+    const claims = px.pending.map((entry, index) => `<button class="btn" type="button" data-px="claim" data-index="${index}">我是 ${esc(entry.name)}</button>`).join("");
+    return `<div class="panel notice"><b>這份連結可以接回原本的預測</b><p>${names}</p><p class="muted">點你自己的名字，前十會回到這台瀏覽器，其他人也留在排行榜。你是新加入的話，用下面的表單另外排。</p><div class="row">${claims}</div></div>`;
   }
   return `<div class="panel notice"><b>這份連結有 ${px.pending.length} 份預測</b><p>${names}</p><button class="btn primary" type="button" data-px="import-pending">加進我的排行榜</button></div>`;
 }
@@ -360,13 +405,14 @@ function viewFriends() {
     <div class="grid two">
       <section class="panel">
         <h2>把預測傳給朋友</h2>
-        <p class="muted">排滿 10 人之後複製連結，貼到群組。朋友打開並建立名字，就會把你加進他們的榜。你也要打開他們回傳的連結。人都到齊後，再複製一次整份排行榜，大家看到的名單就會對上。</p>
+        <p class="muted">排滿 10 人之後，把整份排行榜連結或繼續檔留在群組裡。之後打開同一份資料，點自己的名字，就會接回原本的前十。這台瀏覽器如果已經有你的名單，新朋友會併進來，不會蓋掉你排好的順序。</p>
         ${code ? `
           <label class="field"><span>你的分享碼</span><input readonly value="${esc(code)}"></label>
           <div class="row" style="margin-top:10px">
             <button class="btn primary" type="button" data-px="copy" data-copy="code">複製分享碼</button>
             <button class="btn" type="button" data-px="copy" data-copy="link">複製個人連結</button>
             ${league ? `<button class="btn" type="button" data-px="copy" data-copy="league">複製整份排行榜</button>` : ""}
+            ${league ? `<button class="btn" type="button" data-px="download-league">下載繼續檔</button>` : ""}
           </div>` : `<p class="warn">先排滿 10 人，才有分享碼。</p>`}
       </section>
       <section class="panel">
@@ -376,6 +422,7 @@ function viewFriends() {
           <label class="field"><span>朋友的名字</span><input id="friend-name" maxlength="16" placeholder="如果貼的是整段連結，名字可以留空"></label>
           <label class="field"><span>分享碼或連結</span><textarea id="friend-code" rows="3" placeholder="貼上 K7- 開頭的碼，或整段網址"></textarea></label>
           <button class="btn primary" type="submit">加入排行榜</button>
+          <label class="btn">讀回繼續檔<input id="league-file" type="file" accept=".txt,text/plain" hidden></label>
         </form>`}
         <div style="margin-top:12px">
           ${PX.state.friends.map((friend) => `<div class="person"><div><b>${esc(friend.name)}</b><div class="sub">${esc(friend.code)}</div></div><button class="btn danger" type="button" data-px="drop-friend" data-code="${esc(friend.code)}">移除</button></div>`).join("") || `<p class="muted">還沒有朋友。</p>`}
@@ -566,6 +613,19 @@ function onPx(event) {
     DreamUI.notify(count ? `已加入 ${count} 份預測。` : "這些預測已經在榜上。");
     return;
   }
+  if (act === "claim") {
+    const entry = px.pending[Number(button.dataset.index)];
+    if (!entry || !PX.adopt(entry.name, entry.code)) {
+      DreamUI.notify("這份預測對不上目前的球員名單。");
+      return;
+    }
+    const count = takePending();
+    px.tab = "board";
+    DreamUI.setMode("predict");
+    DreamUI.notify(count ? `已接回 ${PX.state.name} 的前十，並加入 ${count} 位朋友。` : `已接回 ${PX.state.name} 的前十。`);
+    return;
+  }
+  if (act === "download-league") { downloadLeague(); return; }
   if (act === "reset") {
     if (PX.resultsReady()) { DreamUI.notify("真實數據已進來，這份預測已封存。"); return; }
     if (window.confirm("要清除你的預測和朋友名單嗎？")) { PX.reset(); DreamUI.setMode("hub"); }
@@ -637,6 +697,15 @@ function onInput(event) {
   DreamUI.render();
 }
 function onChange(event) {
+  if (event.target.id === "league-file") {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => absorbLeague(reader.result);
+    reader.readAsText(file);
+    return;
+  }
   if (event.target.id === "px-sort") { px.sort = event.target.value; DreamUI.render(); return; }
   if (event.target.id === "px-opp") {
     px.opponent = event.target.value;
