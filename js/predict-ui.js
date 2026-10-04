@@ -105,10 +105,17 @@ function copyText(text, ok) {
   }
   DreamUI.notify("沒辦法自動複製，請手動選取文字。");
 }
+function teamLogo(code) {
+  const espn = {
+    BRK: "bkn", CHO: "cha", GSW: "gs", NOP: "no", NYK: "ny",
+    PHO: "phx", SAS: "sa", UTA: "utah", WAS: "wsh"
+  };
+  return `https://a.espncdn.com/i/teamlogos/nba/500/${espn[code] || code.toLowerCase()}.png`;
+}
 function teamRail() {
   const chips = Object.entries(DC.teamMeta).map(([code, team]) => {
     const ink = PX.ink(team.color);
-    return `<span class="team-chip"><b style="--team:${team.color};--ink:${ink}">${esc(code)}</b><span>${esc(team.name)}</span></span>`;
+    return `<span class="team-chip"><b style="--team:${team.color};--ink:${ink}"><img src="${teamLogo(code)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"><span>${esc(code)}</span></b><span>${esc(team.name)}</span></span>`;
   }).join("");
   return `<div class="league-strip" aria-hidden="true"><div class="league-track">${chips}${chips}</div></div>`;
 }

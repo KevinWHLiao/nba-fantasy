@@ -837,7 +837,7 @@ document.body.addEventListener("error", (event) => {
   const el = event.target;
   if (!el || !el.closest) return;
   const name = (el.localName || "").toLowerCase();
-  if (name === "img" && el.closest(".face")) el.remove();
+  if (name === "img" && (el.closest(".face") || el.closest(".team-chip"))) el.remove();
   if (name === "image" && el.classList && el.classList.contains("mug")) el.remove();
 }, true);
 DC.load();
