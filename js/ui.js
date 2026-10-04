@@ -121,9 +121,9 @@ function setupScreen() {
     <main class="page"><div class="wrap hero">
       <div class="kicker">模擬賽季 · 和預測榜分開存檔</div>
       <h1>組一支<br><span class="grad">夢幻球隊</span></h1>
-      <p class="lead">10 隊聯盟、蛇形選秀、每週對戰、傷兵、自由市場、交易和季後賽。球員場均來自 2025-26 NBA 正規賽：尼克奪冠，Alexander 拿下 MVP，Flagg 是最佳新秀。</p>
+      <p class="lead">10 隊聯盟、蛇形選秀、每週對戰、傷兵、自由市場、交易和季後賽。名單是 2026-27 各隊現有球員，場均仍來自 2025-26 正規賽；新秀還沒有上季數據。</p>
       <div class="grid cards" style="margin:18px 0">
-        ${[["210", "名真實球員"], ["13", "人名單 + 2 傷兵"], ["15", "週常規賽"], ["6", "隊打季後賽"]].map(([n, label]) => `<div class="panel stat"><span>${label}</span><b>${n}</b></div>`).join("")}
+        ${[[String(DC.players.length), "名 2026-27 球員"], ["13", "人名單 + 2 傷兵"], ["15", "週常規賽"], ["6", "隊打季後賽"]].map(([n, label]) => `<div class="panel stat"><span>${label}</span><b>${n}</b></div>`).join("")}
       </div>
       <form id="setup" class="panel">
         <h2>開一季新的</h2>
@@ -551,7 +551,7 @@ function viewRules() {
         <div><h3>季後賽</h3><p>15 週後前 6 名晉級。第 1、2 種子首輪輪空，之後單週淘汰，敗部分別打季軍戰。</p></div>
       </div>
       <hr class="sep">
-      <p class="muted">能力值取自 2025-26 NBA 正規賽場均，並用隨機手感、傷病和出賽數模擬 2026-27 的 18 週縮短賽程。這是休閒遊戲，不是官方 Fantasy 產品，也不代表尚未發生的真實賽季。</p>
+      <p class="muted">能力值取自 2025-26 NBA 正規賽場均，名單則是 2026-27 各隊現況。新秀沒有上季數據。這是休閒遊戲，不是官方 Fantasy 產品。</p>
       <div class="row"><button class="btn" data-act="export">匯出存檔</button><button class="btn danger" data-act="reset">清除這季</button></div>
     </section>`;
 }

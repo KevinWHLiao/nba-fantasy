@@ -84,6 +84,12 @@ function statusLine() {
   }
   return `<p class="led-note">2026-27 還沒有可結算的真實數據。下面的分數是用 2025-26 名次試算，方便先看榜怎麼排。賽季數據放進來之後，同一份預測會自動改成正式排名。</p>`;
 }
+function seasonBit(player) {
+  if (!player.g) {
+    return (player.tags || []).includes("2026新秀") ? "2026 新秀" : "上季未出賽";
+  }
+  return `上季 ${DreamUI.n1(player.fppg)}`;
+}
 function jersey(player, rank, extra) {
   const info = DC.teamMeta[player.team] || { name: player.team, color: "#888" };
   const ink = PX.ink(info.color);
@@ -93,7 +99,7 @@ function jersey(player, rank, extra) {
     ${DreamUI.face(player, "card")}
     <div class="jersey-name">${esc(PX.lastName(player.name))}</div>
     <div class="jersey-full">${esc(player.name)}</div>
-    <div class="jersey-meta">${esc(info.name)} · ${player.age} 歲 · 上季 ${DreamUI.n1(player.fppg)}</div>
+    <div class="jersey-meta">${esc(info.name)} · ${player.age} 歲 · ${seasonBit(player)}</div>
     ${extra || ""}
   </article>`;
 }
@@ -284,7 +290,7 @@ function slotRow(index) {
     <button class="btn danger" type="button" data-px="remove" data-id="${id}">移出</button>`;
   return `<div class="forecast-slot" style="--team:${info.color}">
     <b>${index + 1}</b>
-    <div class="who">${DreamUI.face(player)}<div><strong>${esc(player.name)}</strong><div class="sub">${esc(player.pos)} · ${esc(info.name)} · ${player.age} 歲 · 上季第 ${lastRank(id)} · ${DreamUI.n1(player.fppg)}</div></div></div>
+    <div class="who">${DreamUI.face(player)}<div><strong>${esc(player.name)}</strong><div class="sub">${esc(player.pos)} · ${esc(info.name)} · ${player.age} 歲 · ${player.g ? `上季第 ${lastRank(id)} · ` : ""}${seasonBit(player)}</div></div></div>
     <div class="row">${actions}</div>
   </div>`;
 }
@@ -323,7 +329,7 @@ function viewPicks() {
         </div>
       </section>
       <section class="panel">
-        <h2>從上季名單裡挑</h2>
+        <h2>從 2026-27 名單裡挑</h2>
         <div class="row">
           <input id="pxq" type="search" placeholder="搜尋名字或球隊，例如 Flagg、湖人" value="${esc(px.q)}" autocomplete="off">
           <select id="px-sort">
@@ -341,7 +347,7 @@ function viewPicks() {
             const action = picked >= 0
               ? `<span class="tag">第 ${picked + 1} 名</span>`
               : `<button class="btn primary" type="button" data-px="add" data-id="${player.id}" ${PX.frozen() ? "disabled" : ""}>放入</button>`;
-            return `<div class="person"><div class="who">${DreamUI.face(player)}<div><b>${esc(player.name)}</b><div class="sub">${esc(player.pos)} · <i class="dot" style="background:${info.color}"></i>${esc(info.name)} · ${player.age} 歲 · 上季第 ${lastRank(player.id)} · ${DreamUI.n1(player.fppg)}</div></div></div>${action}</div>`;
+            return `<div class="person"><div class="who">${DreamUI.face(player)}<div><b>${esc(player.name)}</b><div class="sub">${esc(player.pos)} · <i class="dot" style="background:${info.color}"></i>${esc(info.name)} · ${player.age} 歲 · ${player.g ? `上季第 ${lastRank(player.id)} · ` : ""}${seasonBit(player)}</div></div></div>${action}</div>`;
           }).join("")}
         </div>
       </section>
@@ -431,7 +437,7 @@ function viewRules() {
         <div class="panel stat"><span>40 名開外</span><b>0</b><span class="muted">這格沒有猜中</span></div>
       </div>
       <p>舉例：你的第 1 名最後真的是第 1，這格 80 分。若他落到第 2，變 74 分。若落到第 15，這格只剩 19 分。十格加總就是預測分。</p>
-      <p>現在看到的是上季試算：把 2025-26 的名次套進同一套公式。它只讓你們先比較名單，不會當成 2026-27 的正式排名。火力欄是這 10 人的場均夢幻積分加總，方便看產能，不決定名次。</p>
+      <p>現在看到的是上季試算：把 2025-26 的名次套進同一套公式。2026 新秀和上季沒出賽的人，試算是 0 分，要等真實數據才會計進正式排名。火力欄是這 10 人的場均夢幻積分加總，不決定名次。</p>
       <h2>和朋友一起玩</h2>
       <p>這個網站沒有中央伺服器。你的名單在自己的瀏覽器，朋友的名單要靠分享碼或連結加進來。資料更新、正式結算之前，先把想比的人都加進榜；結算之後就不能再補交新預測。</p>
       <h2>場上那顆球</h2>

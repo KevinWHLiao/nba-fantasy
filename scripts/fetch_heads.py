@@ -19,7 +19,8 @@ def get(url):
 
 
 def norm(name):
-    text = unicodedata.normalize("NFKD", str(name))
+    text = str(name).replace("ё", "e").replace("Ё", "E").replace("е", "e").replace("Е", "E")
+    text = unicodedata.normalize("NFKD", text)
     text = "".join(ch for ch in text if not unicodedata.combining(ch))
     text = text.replace("'", "").replace("’", "").replace(".", "")
     text = text.replace("-", " ")

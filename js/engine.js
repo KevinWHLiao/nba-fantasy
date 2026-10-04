@@ -39,7 +39,12 @@ const DC = (() => {
   }
   function me() { return state.teams[0]; }
   function teamById(id) { return state.teams.find((t) => t.id === id); }
-  function ov(id) { return state.ov[id]; }
+  function ov(id) {
+    if (state.ov[id]) return state.ov[id];
+    const row = { own: null, status: "OK", inj: 0, hot: 0, recent: [], season: emptySeason() };
+    if (BY_ID[id]) state.ov[id] = row;
+    return row;
+  }
   function P(id) { return Object.assign({}, BY_ID[id], state.ov[id]); }
 
   function news(text, kind) {
@@ -52,7 +57,7 @@ const DC = (() => {
   }
 
   function canPlay(p, slot) {
-    if (!p) return false;
+    if (!p || !p.elig) return false;
     if (slot === "U1" || slot === "U2") return true;
     if (slot === "G") return p.elig.includes("PG") || p.elig.includes("SG");
     if (slot === "F") return p.elig.includes("SF") || p.elig.includes("PF");
@@ -77,6 +82,7 @@ const DC = (() => {
 
   function ros(id) {
     const base = BY_ID[id];
+    if (!base) return 0;
     const extra = ov(id);
     let m = 1;
     if (extra.status === "OUT" || extra.inj > 0) m = extra.inj >= 3 ? 0.55 : 0.72;
@@ -87,6 +93,7 @@ const DC = (() => {
 
   function priceOf(id) {
     const base = BY_ID[id];
+    if (!base) return 0;
     const extra = ov(id);
     let mult = 1;
     if (extra.status === "OUT" || extra.inj > 0) mult = extra.inj >= 3 ? 0.5 : 0.7;
@@ -193,7 +200,7 @@ const DC = (() => {
       playoff: null, news: [], log: [], results: {}, offer: null, watch: [],
       awards: null, grade: null, created: Date.now()
     };
-    news("2026-27 夢幻賽季開幕。球員能力以 2025-26 正規賽場均為基礎。", "info");
+    news("2026-27 夢幻賽季開幕。名單是本季各隊球員，能力以 2025-26 正規賽場均為基礎。", "info");
     news("上季回顧：尼克奪冠，Shai Gilgeous-Alexander 拿下 MVP，Cooper Flagg 當選最佳新秀。", "info");
     openingInjuries();
     save();
@@ -328,7 +335,7 @@ const DC = (() => {
     const cands = team.roster.map((id) => {
       const p = P(id);
       return { id, proj: project(p, week), p };
-    }).filter((x) => x.p.status !== "OUT" && x.p.inj <= 0);
+    }).filter((x) => x.p && x.p.elig && x.p.status !== "OUT" && x.p.inj <= 0);
     const ranked = cands.slice().sort((a, b) => b.proj - a.proj);
     let best = emptyLineup();
     let bestScore = -1;
@@ -1154,6 +1161,26 @@ function applyRecord(aId, bId, sa, sb, week) {
     if (!state) return;
     localStorage.setItem(KEY, JSON.stringify(state));
   }
+  function knownPlayer(id) { return !!BY_ID[Number(id)]; }
+  function pruneMissing() {
+    if (!state) return;
+    state.teams.forEach((team) => {
+      team.roster = (team.roster || []).filter(knownPlayer);
+      team.il = (team.il || []).filter(knownPlayer);
+      SLOT_KEYS.forEach((slot) => {
+        if (team.lineup && team.lineup[slot] != null && !knownPlayer(team.lineup[slot])) team.lineup[slot] = null;
+      });
+    });
+    Object.keys(state.ov || {}).forEach((id) => {
+      if (!knownPlayer(id)) delete state.ov[id];
+    });
+    PLAYERS.forEach((player) => {
+      if (!state.ov[player.id]) {
+        state.ov[player.id] = { own: null, status: "OK", inj: 0, hot: 0, recent: [], season: emptySeason() };
+      }
+    });
+    if (Array.isArray(state.watch)) state.watch = state.watch.filter(knownPlayer);
+  }
   function load() {
     try {
       const raw = localStorage.getItem(KEY);
@@ -1161,6 +1188,7 @@ function applyRecord(aId, bId, sa, sb, week) {
       const next = JSON.parse(raw);
       if (!next || next.v !== 1 || !Array.isArray(next.teams)) return false;
       state = next;
+      pruneMissing();
       return true;
     } catch (err) {
       return false;
@@ -1175,6 +1203,7 @@ function applyRecord(aId, bId, sa, sb, week) {
     const next = JSON.parse(text);
     if (!next || next.v !== 1 || !Array.isArray(next.teams)) throw new Error("bad save");
     state = next;
+    pruneMissing();
     save();
   }
 
