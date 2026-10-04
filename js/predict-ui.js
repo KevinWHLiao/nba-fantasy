@@ -242,7 +242,7 @@ function hub() {
             <h2>用你的名字進榜</h2>
             <form id="px-setup">
               <div class="row">
-                <label class="field"><span>你的名字</span><input id="px-name" maxlength="16" value="我" required></label>
+                <label class="field"><span>你的名字</span><input id="px-name" type="text" maxlength="16" value="我" required></label>
                 <div class="field"><span>代表色</span><div class="swatches">
                   ${colors.map((color, index) => `<button type="button" class="swatch ${index === 0 ? "active" : ""}" data-act="color" data-color="${color}" style="background:${color}"></button>`).join("")}
                 </div></div>
@@ -407,7 +407,7 @@ function viewFriends() {
         <h2>把預測傳給朋友</h2>
         <p class="muted">排滿 10 人之後，把整份排行榜連結或繼續檔留在群組裡。之後打開同一份資料，點自己的名字，就會接回原本的前十。這台瀏覽器如果已經有你的名單，新朋友會併進來，不會蓋掉你排好的順序。</p>
         ${code ? `
-          <label class="field"><span>你的分享碼</span><input readonly value="${esc(code)}"></label>
+          <label class="field"><span>你的分享碼</span><input type="text" readonly value="${esc(code)}"></label>
           <div class="row" style="margin-top:10px">
             <button class="btn primary" type="button" data-px="copy" data-copy="code">複製分享碼</button>
             <button class="btn" type="button" data-px="copy" data-copy="link">複製個人連結</button>
@@ -419,7 +419,7 @@ function viewFriends() {
         <h2>加入朋友傳來的預測</h2>
         ${PX.resultsReady() ? `<p class="muted">已經結算，不能再加入新名單。</p>` : `
         <form id="px-friend" class="grid">
-          <label class="field"><span>朋友的名字</span><input id="friend-name" maxlength="16" placeholder="如果貼的是整段連結，名字可以留空"></label>
+          <label class="field"><span>朋友的名字</span><input id="friend-name" type="text" maxlength="16" placeholder="如果貼的是整段連結，名字可以留空"></label>
           <label class="field"><span>分享碼或連結</span><textarea id="friend-code" rows="3" placeholder="貼上 K7- 開頭的碼，或整段網址"></textarea></label>
           <button class="btn primary" type="submit">加入排行榜</button>
           <label class="btn">讀回繼續檔<input id="league-file" type="file" accept=".txt,text/plain" hidden></label>
