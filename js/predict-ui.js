@@ -90,6 +90,7 @@ function jersey(player, rank, extra) {
   return `<article class="jersey" style="--team:${info.color};--ink:${ink}">
     <div class="jersey-rank">${rank}</div>
     <div class="jersey-pos">${esc(player.pos)}</div>
+    ${DreamUI.face(player, "card")}
     <div class="jersey-name">${esc(PX.lastName(player.name))}</div>
     <div class="jersey-full">${esc(player.name)}</div>
     <div class="jersey-meta">${esc(info.name)} · ${player.age} 歲 · 上季 ${DreamUI.n1(player.fppg)}</div>
@@ -102,9 +103,16 @@ function athleteNode(player, spot, side, index) {
   const ink = PX.ink(info.color);
   const rawLabel = PX.lastName(player.name);
   const label = rawLabel.length > 12 ? `${rawLabel.slice(0, 11)}…` : rawLabel;
+  const heads = typeof PLAYER_HEADS === "undefined" ? null : PLAYER_HEADS;
+  const url = heads && heads[player.id];
+  const photo = url
+    ? `<image class="mug" href="${esc(url)}" x="-26" y="-26" width="52" height="52" preserveAspectRatio="xMidYMin slice"></image>`
+    : "";
   return `<g class="athlete" id="ath-${side}-${index}" transform="translate(${spot.x},${spot.y})">
-    <circle r="26" fill="${info.color}" stroke="${ink === "#fff" ? "rgba(0,0,0,.55)" : ink}" stroke-width="2"></circle>
+    <circle r="26" fill="${info.color}"></circle>
     <text y="5" text-anchor="middle" font-size="13" font-weight="700" fill="${ink}">${esc(PX.initials(player.name))}</text>
+    ${photo}
+    <circle class="ring" r="26" fill="none" stroke="${ink === "#fff" ? "rgba(0,0,0,.55)" : ink}" stroke-width="2"></circle>
     <text y="48" text-anchor="middle" font-size="14" font-weight="700" fill="#1a1203" stroke="#f8f1e4" stroke-width="4" paint-order="stroke">${esc(label)}</text>
   </g>`;
 }
@@ -276,7 +284,7 @@ function slotRow(index) {
     <button class="btn danger" type="button" data-px="remove" data-id="${id}">移出</button>`;
   return `<div class="forecast-slot" style="--team:${info.color}">
     <b>${index + 1}</b>
-    <div><strong>${esc(player.name)}</strong><div class="sub">${esc(player.pos)} · ${esc(info.name)} · ${player.age} 歲 · 上季第 ${lastRank(id)} · ${DreamUI.n1(player.fppg)}</div></div>
+    <div class="who">${DreamUI.face(player)}<div><strong>${esc(player.name)}</strong><div class="sub">${esc(player.pos)} · ${esc(info.name)} · ${player.age} 歲 · 上季第 ${lastRank(id)} · ${DreamUI.n1(player.fppg)}</div></div></div>
     <div class="row">${actions}</div>
   </div>`;
 }
@@ -333,7 +341,7 @@ function viewPicks() {
             const action = picked >= 0
               ? `<span class="tag">第 ${picked + 1} 名</span>`
               : `<button class="btn primary" type="button" data-px="add" data-id="${player.id}" ${PX.frozen() ? "disabled" : ""}>放入</button>`;
-            return `<div class="person"><div><b>${esc(player.name)}</b><div class="sub">${esc(player.pos)} · <i class="dot" style="background:${info.color}"></i>${esc(info.name)} · ${player.age} 歲 · 上季第 ${lastRank(player.id)} · ${DreamUI.n1(player.fppg)}</div></div>${action}</div>`;
+            return `<div class="person"><div class="who">${DreamUI.face(player)}<div><b>${esc(player.name)}</b><div class="sub">${esc(player.pos)} · <i class="dot" style="background:${info.color}"></i>${esc(info.name)} · ${player.age} 歲 · 上季第 ${lastRank(player.id)} · ${DreamUI.n1(player.fppg)}</div></div></div>${action}</div>`;
           }).join("")}
         </div>
       </section>

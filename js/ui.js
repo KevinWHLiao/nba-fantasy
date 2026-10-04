@@ -50,6 +50,15 @@ function ball() {
 function toastHtml() {
   return session.toast ? `<div id="toast" class="toast">${esc(session.toast)}</div>` : "";
 }
+function face(player, size) {
+  if (!player) return "";
+  const info = DC.teamMeta[player.team] || { color: "#333" };
+  const heads = typeof PLAYER_HEADS === "undefined" ? null : PLAYER_HEADS;
+  const url = heads && heads[player.id];
+  const tone = PX.ink(info.color);
+  const kind = size === "card" ? "card" : "sm";
+  return `<span class="face ${kind}" style="--team:${info.color};--ink:${tone}">${url ? `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ""}<span>${esc(PX.initials(player.name))}</span></span>`;
+}
 function teamPill(code) {
   const info = meta(code);
   return `<span class="team-pill"><i style="background:${info.color}"></i>${esc(code)} ${esc(info.name)}</span>`;
@@ -175,7 +184,7 @@ function viewDraft() {
           <h3>你的名單 ${mine.roster.length}/13</h3>
           ${mine.roster.length ? mine.roster.map((id) => {
             const p = DC.P(id);
-            return `<div class="person"><div><button class="link" data-act="player" data-id="${id}">${esc(p.name)}</button><div class="sub">${esc(p.pos)} · ${teamPill(p.team)}</div></div><b>${n1(p.fppg)}</b></div>`;
+            return `<div class="person"><div class="who">${face(p)}<div><button class="link" data-act="player" data-id="${id}">${esc(p.name)}</button><div class="sub">${esc(p.pos)} · ${teamPill(p.team)}</div></div></div><b>${n1(p.fppg)}</b></div>`;
           }).join("") : `<p class="muted">還沒有球員。</p>`}
         </section>
         <section class="panel">
@@ -219,10 +228,10 @@ function viewHome() {
       <section class="panel">
         <h3>球隊快訊</h3>
         ${state.phase === "season" && DC.canTrade() && state.offer && DC.offerValid() ? `<div class="panel" style="margin-bottom:10px"><b>交易提案</b><p>${esc(state.offer.note)}</p><div class="row"><button class="btn good" data-act="accept">接受</button><button class="btn" data-act="decline">拒絕</button></div></div>` : ""}
-        ${injuries.length ? injuries.map((p) => `<div class="person"><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button>${statusBits(p)}</div>`).join("") : `<p class="muted">名單目前沒有傷兵。</p>`}
+        ${injuries.length ? injuries.map((p) => `<div class="person"><div class="who">${face(p)}<div><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button><div class="sub">${statusBits(p)}</div></div></div></div>`).join("") : `<p class="muted">名單目前沒有傷兵。</p>`}
         <hr class="sep">
         <h3>聯盟焦點</h3>
-        ${focus.map((row) => `<div class="person"><div><button class="link" data-act="player" data-id="${row.id}">${esc(DC.P(row.id).name)}</button><div class="sub">${row.box.g} 場 · ${row.box.pts}分 ${row.box.reb}籃 ${row.box.ast}助</div></div><b>${n1(row.box.fp)}</b></div>`).join("") || `<p class="muted">模擬一週之後，這裡會出現爆量表現。</p>`}
+        ${focus.map((row) => `<div class="person"><div class="who">${face(DC.P(row.id))}<div><button class="link" data-act="player" data-id="${row.id}">${esc(DC.P(row.id).name)}</button><div class="sub">${row.box.g} 場 · ${row.box.pts}分 ${row.box.reb}籃 ${row.box.ast}助</div></div></div><b>${n1(row.box.fp)}</b></div>`).join("") || `<p class="muted">模擬一週之後，這裡會出現爆量表現。</p>`}
         <hr class="sep">
         ${state.news.slice(0, 4).map((item) => `<div class="news-item"><b>W${item.week}</b>${esc(item.text)}</div>`).join("")}
       </section>
@@ -326,7 +335,7 @@ function viewLineup() {
 }
 
 function personRow(p, actions) {
-  return `<div class="person"><div><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button><div class="sub">${esc(p.elig.join("/"))} · ${p.team} · ${statusBits(p) || "健康"} · 預估 ${n1(DC.project(p, DC.state.week || 1))}</div></div><div class="row">${actions || ""}</div></div>`;
+  return `<div class="person"><div class="who">${face(p)}<div><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button><div class="sub">${esc(p.elig.join("/"))} · ${p.team} · ${statusBits(p) || "健康"} · 預估 ${n1(DC.project(p, DC.state.week || 1))}</div></div></div><div class="row">${actions || ""}</div></div>`;
 }
 
 function viewMatch() {
@@ -414,7 +423,7 @@ function viewTrade() {
 }
 function tradeCheck(bucket, p) {
   const on = session[bucket].includes(p.id);
-  return `<label class="check"><input type="checkbox" data-act="trade-check" data-bucket="${bucket}" data-id="${p.id}" ${on ? "checked" : ""}><span><b>${esc(p.name)}</b><br><span class="muted">${esc(p.pos)} · 價值 ${n1(DC.ros(p.id))} ${statusBits(p)}</span></span></label>`;
+  return `<label class="check"><input type="checkbox" data-act="trade-check" data-bucket="${bucket}" data-id="${p.id}" ${on ? "checked" : ""}><span class="who">${face(p)}<span><b>${esc(p.name)}</b><br><span class="muted">${esc(p.pos)} · 價值 ${n1(DC.ros(p.id))} ${statusBits(p)}</span></span></span></label>`;
 }
 function tradeSummary() {
   const give = session.give.map((id) => DC.ros(id)).reduce((a, b) => a + b, 0);
@@ -473,7 +482,7 @@ function viewStats() {
         <tbody>${rows.map((base, i) => {
           const p = DC.P(base.id);
           const src = started ? p.season : null;
-          return `<tr class="${p.own === 0 ? "me" : ""}"><td>${i + 1}</td><td><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button></td><td>${teamPill(p.team)}</td><td class="num">${src ? src.g : p.g}</td><td class="num">${src ? n1(src.fp) : n1(p.fppg)}</td><td class="num">${src ? src.pts : n1(p.pts)}</td><td class="num">${src ? src.reb : n1(p.reb)}</td><td class="num">${src ? src.ast : n1(p.ast)}</td><td class="num">${src ? src.stl : n1(p.stl)}</td><td class="num">${src ? src.blk : n1(p.blk)}</td></tr>`;
+          return `<tr class="${p.own === 0 ? "me" : ""}"><td>${i + 1}</td><td><div class="who">${face(p)}<button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button></div></td><td>${teamPill(p.team)}</td><td class="num">${src ? src.g : p.g}</td><td class="num">${src ? n1(src.fp) : n1(p.fppg)}</td><td class="num">${src ? src.pts : n1(p.pts)}</td><td class="num">${src ? src.reb : n1(p.reb)}</td><td class="num">${src ? src.ast : n1(p.ast)}</td><td class="num">${src ? src.stl : n1(p.stl)}</td><td class="num">${src ? src.blk : n1(p.blk)}</td></tr>`;
         }).join("")}</tbody>
       </table></div>
     </section>
@@ -493,7 +502,7 @@ function compareOptions(selected) {
 function compareCard(id) {
   const p = DC.P(id);
   const rows = [["場均積分", n1(p.fppg)], ["得分", n1(p.pts)], ["籃板", n1(p.reb)], ["助攻", n1(p.ast)], ["抄截", n1(p.stl)], ["阻攻", n1(p.blk)], ["三分", n1(p.tpm)], ["出勤", `${p.g} 場`], ["年齡", p.age]];
-  return `<div class="panel"><h3>${esc(p.name)}</h3><p>${teamPill(p.team)} · ${esc(p.elig.join("/"))}</p>${rows.map(([k, v]) => `<div class="person"><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
+  return `<div class="panel"><div class="who">${face(p, "card")}<div><h3>${esc(p.name)}</h3><p>${teamPill(p.team)} · ${esc(p.elig.join("/"))}</p></div></div>${rows.map(([k, v]) => `<div class="person"><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
 }
 
 function viewNews() {
@@ -501,7 +510,7 @@ function viewNews() {
   return `
     <div class="grid two">
       <section class="panel"><h2>聯盟新聞</h2>${DC.state.news.map((item) => `<div class="news-item"><b>W${item.week}</b>${esc(item.text)}</div>`).join("")}</section>
-      <section class="panel"><h2>傷兵報告</h2>${hurt.map((p) => `<div class="person"><div><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button><div class="sub">${teamPill(p.team)} ${p.own == null ? "自由市場" : esc(teamName(p.own))}</div></div>${statusBits(p)}</div>`).join("") || `<p class="muted">目前沒有傷兵。</p>`}</section>
+      <section class="panel"><h2>傷兵報告</h2>${hurt.map((p) => `<div class="person"><div class="who">${face(p)}<div><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button><div class="sub">${teamPill(p.team)} ${p.own == null ? "自由市場" : esc(teamName(p.own))}</div></div></div>${statusBits(p)}</div>`).join("") || `<p class="muted">目前沒有傷兵。</p>`}</section>
     </div>`;
 }
 
@@ -596,7 +605,7 @@ function playerTable(list, drafting) {
       const action = drafting
         ? (clock === 0 ? `<button class="btn primary" data-act="draft" data-id="${p.id}">選他</button>` : "")
         : `<button class="btn" data-act="add" data-id="${p.id}" ${DC.me().faab < DC.priceOf(p.id) ? "disabled" : ""}>$${DC.priceOf(p.id)} 簽下</button>`;
-      return `<tr><td>${p.id}</td><td><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button><div class="sub">${tags(p)} ${statusBits(p)} ${DC.state.watch.includes(p.id) ? "★" : ""}</div></td><td>${teamPill(p.team)}</td><td>${esc(p.elig.join("/"))}</td><td class="num">${n1(p.fppg)}</td><td class="num">${n1(p.pts)}</td><td class="num">${n1(p.reb)}</td><td class="num">${n1(p.ast)}</td><td class="num">${n1(p.stl)}</td><td class="num">${n1(p.blk)}</td><td class="num">${n1(p.tpm)}</td><td class="num">${p.g}</td><td>${action}</td></tr>`;
+      return `<tr><td>${p.id}</td><td><div class="who">${face(p)}<div><button class="link" data-act="player" data-id="${p.id}">${esc(p.name)}</button><div class="sub">${tags(p)} ${statusBits(p)} ${DC.state.watch.includes(p.id) ? "★" : ""}</div></div></div></td><td>${teamPill(p.team)}</td><td>${esc(p.elig.join("/"))}</td><td class="num">${n1(p.fppg)}</td><td class="num">${n1(p.pts)}</td><td class="num">${n1(p.reb)}</td><td class="num">${n1(p.ast)}</td><td class="num">${n1(p.stl)}</td><td class="num">${n1(p.blk)}</td><td class="num">${n1(p.tpm)}</td><td class="num">${p.g}</td><td>${action}</td></tr>`;
     }).join("")}</tbody>
   </table></div>`;
 }
@@ -619,7 +628,7 @@ function modal(id) {
   return `
     <div class="modal-back" data-act="close">
       <div class="panel modal" data-act="stop">
-        <div class="split"><h2>${esc(p.name)}</h2><button class="btn" data-act="close">關閉</button></div>
+        <div class="split"><div class="who">${face(p, "card")}<h2>${esc(p.name)}</h2></div><button class="btn" data-act="close">關閉</button></div>
         <p>${teamPill(p.team)} · ${esc(p.elig.join("/"))} · ${p.age} 歲 · ${esc(owner)}</p>
         <p>${tags(p)} ${statusBits(p)}</p>
         <div class="grid cards">
@@ -824,10 +833,17 @@ document.body.addEventListener("click", onClick);
 document.body.addEventListener("change", onChange);
 document.body.addEventListener("input", onInput);
 document.body.addEventListener("submit", onSubmit);
+document.body.addEventListener("error", (event) => {
+  const el = event.target;
+  if (!el || !el.closest) return;
+  const name = (el.localName || "").toLowerCase();
+  if (name === "img" && el.closest(".face")) el.remove();
+  if (name === "image" && el.classList && el.classList.contains("mug")) el.remove();
+}, true);
 DC.load();
 PX.load();
 window.DreamUI = {
-  esc, n1, notify, render, toastHtml, ball,
+  esc, n1, notify, render, toastHtml, ball, face,
   setMode(mode) {
     session.mode = mode;
     keepScroll = false;
