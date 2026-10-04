@@ -1,6 +1,7 @@
 "use strict";
 
 const session = {
+  mode: "hub",
   q: "", pos: "ALL", team: "ALL", sort: "adp",
   give: [], get: [], partner: 1, modal: null, pendingAdd: null,
   cmpA: 1, cmpB: 2, toast: ""
@@ -43,6 +44,12 @@ function statusBits(p) {
 function tags(p) {
   return (p.tags || []).map((tag) => `<span class="tag">${esc(tag)}</span>`).join(" ");
 }
+function ball() {
+  return `<span class="logo ball" aria-hidden="true"><svg viewBox="0 0 64 64" width="46" height="46"><circle cx="32" cy="32" r="28" fill="#ee6a2f"/><path d="M6 32h52M32 5c9 9 9 45 0 54M32 5c-9 9-9 45 0 54M10 16c14 7 30 7 44 0M10 48c14-7 30-7 44 0" fill="none" stroke="#1a1203" stroke-width="2.4" stroke-linecap="round"/></svg></span>`;
+}
+function toastHtml() {
+  return session.toast ? `<div id="toast" class="toast">${esc(session.toast)}</div>` : "";
+}
 function teamPill(code) {
   const info = meta(code);
   return `<span class="team-pill"><i style="background:${info.color}"></i>${esc(code)} ${esc(info.name)}</span>`;
@@ -61,8 +68,8 @@ function shell(body) {
       <div class="wrap">
         <div class="top-row">
           <button class="brand" data-act="nav" data-tab="${state.phase === "draft" ? "draft" : "home"}">
-            <span class="logo">DC</span>
-            <span><strong>夢幻球場</strong><small>NBA Fantasy 2026-27</small></span>
+            ${ball()}
+            <span><strong>夢幻球場</strong><small>模擬賽季</small></span>
           </button>
           <div class="scorebug">
             <div><span class="label">${esc(me.name)}</span><b>${state.phase === "draft" ? "選秀" : `${me.w}-${me.l}`}</b></div>
@@ -71,6 +78,7 @@ function shell(body) {
           </div>
         </div>
         <div class="nav-row">
+          <button type="button" data-act="mode" data-mode="hub">預測首頁</button>
           ${tabs.map(([id, label]) => `<button data-act="nav" data-tab="${id}" class="${tab === id ? "active" : ""}">${label}</button>`).join("")}
         </div>
       </div>
@@ -102,7 +110,7 @@ function setupScreen() {
   const colors = ["#7c5cff", "#e03a3e", "#007a33", "#fdb927", "#1d9bf0", "#ff7a18", "#3dd68c", "#f0c14b"];
   return `
     <main class="page"><div class="wrap hero">
-      <div class="kicker">2025-26 真實數據 · 2026-27 模擬賽季</div>
+      <div class="kicker">模擬賽季 · 和預測榜分開存檔</div>
       <h1>組一支<br><span class="grad">夢幻球隊</span></h1>
       <p class="lead">10 隊聯盟、蛇形選秀、每週對戰、傷兵、自由市場、交易和季後賽。球員場均來自 2025-26 NBA 正規賽：尼克奪冠，Alexander 拿下 MVP，Flagg 是最佳新秀。</p>
       <div class="grid cards" style="margin:18px 0">
@@ -125,6 +133,7 @@ function setupScreen() {
         <div class="row" style="margin-top:14px">
           <button class="btn primary" type="submit">開始選秀</button>
           <button class="btn" type="button" data-act="import-click">讀取存檔</button>
+          <button class="btn" type="button" data-act="mode" data-mode="hub">回預測首頁</button>
           <input id="import" type="file" accept="application/json" hidden>
         </div>
         <p class="muted">進度會存在這台瀏覽器。計分：得分 1、籃板 1.2、助攻 1.5、抄截 3、阻攻 3、三分 0.5、失誤 -1、雙十 +2、大三元再 +3。</p>
@@ -648,8 +657,11 @@ function render() {
   const end = prev && prev.selectionEnd;
   const y = keepScroll ? window.scrollY : 0;
   let html = "";
+  if (window.PredictUI) PredictUI.stop();
   try {
-    html = DC.state ? page() : setupScreen();
+    if (session.mode === "predict") html = PredictUI.view();
+    else if (session.mode === "fantasy") html = DC.state ? page() : setupScreen();
+    else html = PredictUI.hub();
   } catch (err) {
     html = `<pre style="color:#fff;padding:24px;white-space:pre-wrap">${esc(err && err.stack ? err.stack : err)}</pre>`;
   }
@@ -689,6 +701,13 @@ function onClick(event) {
   if (act === "stop") { event.stopPropagation(); return; }
   if (act === "color") {
     document.querySelectorAll(".swatch").forEach((el) => el.classList.toggle("active", el === button));
+    return;
+  }
+  if (act === "mode") {
+    if (window.PredictUI) PredictUI.stop();
+    session.mode = button.dataset.mode;
+    keepScroll = false;
+    render();
     return;
   }
   if (act === "nav") { go(button.dataset.tab); return; }
@@ -806,4 +825,12 @@ document.body.addEventListener("change", onChange);
 document.body.addEventListener("input", onInput);
 document.body.addEventListener("submit", onSubmit);
 DC.load();
-render();
+PX.load();
+window.DreamUI = {
+  esc, n1, notify, render, toastHtml, ball,
+  setMode(mode) {
+    session.mode = mode;
+    keepScroll = false;
+    render();
+  }
+};
