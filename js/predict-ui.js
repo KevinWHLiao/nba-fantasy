@@ -106,7 +106,20 @@ function copyText(text, ok) {
   DreamUI.notify("沒辦法自動複製，請手動選取文字。");
 }
 function teamRail() {
-  return `<div class="team-rail" aria-hidden="true">${Object.entries(DC.teamMeta).map(([, team]) => `<i style="background:${team.color}"></i>`).join("")}</div>`;
+  const chips = Object.entries(DC.teamMeta).map(([code, team]) => {
+    const ink = PX.ink(team.color);
+    return `<span class="team-chip"><b style="--team:${team.color};--ink:${ink}">${esc(code)}</b><span>${esc(team.name)}</span></span>`;
+  }).join("");
+  return `<div class="league-strip" aria-hidden="true"><div class="league-track">${chips}${chips}</div></div>`;
+}
+function squadPower(players) {
+  return DreamUI.n1(players.reduce((sum, player) => sum + (player ? player.fppg : 0), 0));
+}
+function lineupCard(player, rank) {
+  if (!player) return "";
+  const info = DC.teamMeta[player.team] || { name: player.team, color: "#333" };
+  const ink = PX.ink(info.color);
+  return `<div class="lineup-row" style="--team:${info.color};--ink:${ink}"><span class="lineup-rank">${rank}</span>${DreamUI.face(player)}<div><b>${esc(PX.lastName(player.name))}</b><div class="sub">${esc(player.pos)} · ${esc(info.name)}</div></div><em>${DreamUI.n1(player.fppg)}</em></div>`;
 }
 function pendingBanner() {
   if (px.joined) {
@@ -148,11 +161,19 @@ function jersey(player, rank, extra) {
     ${extra || ""}
   </article>`;
 }
+function courtName(name) {
+  const parts = String(name).trim().split(/\s+/);
+  const first = parts[0] || name;
+  const last = parts[parts.length - 1] || name;
+  if (last.length <= 11) return last;
+  if (first.length <= 11) return first;
+  return `${last.slice(0, 10)}…`;
+}
 function athleteNode(player, spot, side, index) {
   if (!player) return "";
   const info = DC.teamMeta[player.team] || { color: "#333" };
   const ink = PX.ink(info.color);
-  const rawLabel = PX.lastName(player.name);
+  const rawLabel = courtName(player.name);
   const label = rawLabel.length > 12 ? `${rawLabel.slice(0, 11)}…` : rawLabel;
   const heads = typeof PLAYER_HEADS === "undefined" ? null : PLAYER_HEADS;
   const url = heads && heads[player.id];
@@ -197,20 +218,37 @@ function courtMarkup(home, away) {
     <circle id="hoop-home" class="hoop" cx="78" cy="280" r="12" fill="none" stroke="#f97316" stroke-width="4"></circle>
     <line x1="964" y1="248" x2="964" y2="312" stroke="#f6efe2" stroke-width="5"></line>
     <circle id="hoop-away" class="hoop" cx="922" cy="280" r="12" fill="none" stroke="#f97316" stroke-width="4"></circle>
+    <g class="net" fill="none" stroke="#f6efe2" stroke-width="1.3" opacity="0.8">
+      <path d="M66 294 v20 M72 294 v24 M78 294 v28 M84 294 v24 M90 294 v20 M66 300 h24 M66 308 h24"></path>
+      <path d="M910 294 v20 M916 294 v24 M922 294 v28 M928 294 v24 M934 294 v20 M910 300 h24 M910 308 h24"></path>
+    </g>
+    <g transform="translate(500 280)">
+      <circle r="24" fill="#ee6a2f" opacity="0.92"></circle>
+      <path d="M-24 0 h48 M0 -24 c8 8 8 40 0 48 M0 -24 c-8 8 -8 40 0 48 M-16 -16 c12 6 28 6 40 0 M-16 16 c12 -6 28 -6 40 0" fill="none" stroke="#1a1203" stroke-width="1.6"></path>
+    </g>
+    <text x="500" y="198" text-anchor="middle" fill="#f8f1e4" font-size="16" font-weight="800" letter-spacing="4">2026-27</text>
     ${homeNodes}${awayNodes}
     <circle id="game-ball" cx="500" cy="280" r="12" fill="#f26522" stroke="#1a1203" stroke-width="2"></circle>
   </svg>`;
 }
 function stories() {
   const items = [
-    ["上季冠軍", "紐約尼克"],
+    ["上季冠軍", "紐約尼克", "NYK"],
     ["MVP", "Shai Gilgeous-Alexander"],
     ["最佳新秀", "Cooper Flagg"],
     ["得分王", "Luka Dončić"],
     ["籃板 / 助攻", "Nikola Jokić"],
     ["最佳防守球員", "Victor Wembanyama"]
   ];
-  return `<div class="story-row">${items.map(([label, name]) => `<div class="story"><span>${label}</span><b>${esc(name)}</b></div>`).join("")}</div>`;
+  return `<div class="story-row">${items.map(([label, name, code]) => {
+    const player = DC.players.find((item) => item.name === name);
+    const team = code ? DC.teamMeta[code] : null;
+    const mark = player
+      ? DreamUI.face(player)
+      : `<span class="face sm" style="--team:${team.color};--ink:${PX.ink(team.color)}"><span>NY</span></span>`;
+    const shown = player ? PX.lastName(player.name) : name;
+    return `<div class="story">${mark}<div><span>${esc(label)}</span><b>${esc(shown)}</b></div></div>`;
+  }).join("")}</div>`;
 }
 function hub() {
   const colors = ["#7c5cff", "#e03a3e", "#007a33", "#fdb927", "#1d9bf0", "#ff7a18", "#3dd68c", "#f0c14b"];
@@ -225,8 +263,18 @@ function hub() {
       <h1>誰會在<br><span class="grad">2026-27 打出大季</span></h1>
       <p class="lead">和朋友各自排一張夢幻前十。先用上季數據試算，等 2026-27 的真實成績放進來，同一份名單會自動結算，看誰把名次排得最準。</p>
       ${stories()}
+      <div class="jumbo">
+        <div><span>上季前五</span><b>${squadPower(stars)}</b><small>上季火力</small></div>
+        <div class="jumbo-mid">${DreamUI.ball()}<span>2026-27</span><b>TIP-OFF</b></div>
+        <div><span>緊接五人</span><b>${squadPower(next)}</b><small>上季火力</small></div>
+      </div>
       <div class="stage court-hero">${courtMarkup(stars, next)}</div>
-      <p class="muted court-caption">左半場是上季夢幻積分前五，右半場是緊接著的五人。這一季還會不會是他們，由你們來排。</p>
+      <div class="tipoff">
+        <div class="lineup">${stars.map((player, index) => lineupCard(player, index + 1)).join("")}</div>
+        <div class="tipoff-mark">${DreamUI.ball()}<b>先發</b><span>左半場對右半場</span></div>
+        <div class="lineup away">${next.map((player, index) => lineupCard(player, index + 1)).join("")}</div>
+      </div>
+      <p class="muted court-caption">左半場是上季夢幻積分前五，右半場是緊接著的五人。數字是 2025-26 的場均，不是這一季的比分。</p>
       ${pendingBanner()}
       <div class="grid two" style="margin-top:16px">
         <section class="panel">
