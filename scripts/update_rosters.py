@@ -3,8 +3,8 @@
 
 Existing players keep their ids and 2025-26 per-game rates.
 Their team and age are updated. Players no longer on a roster are removed.
-Added players are contracted rotation pieces, numbered rookies, or veterans
-who are on a roster with a jersey even when ESPN has no 2027 salary.
+Added players are contracted rotation pieces, numbered rookies through age 24,
+or veterans who are on a roster with a jersey even when ESPN has no 2027 salary.
 Rookies have no 2025-26 line, so their rates stay at zero.
 """
 import json
@@ -217,7 +217,7 @@ def stat_line(espn_id):
 def wanted(row):
     if row["salary"] >= 2_000_000:
         return True
-    if row["years"] == 0 and row["jersey"] and 0 < row["age"] <= 21:
+    if row["years"] == 0 and row["jersey"] and 0 < row["age"] <= 24:
         return True
     if not row["jersey"]:
         return False
