@@ -9,7 +9,8 @@ const px = {
   opponent: "lastyear",
   open: "me",
   pending: [],
-  joined: 0
+  joined: 0,
+  duel: "lastyear"
 };
 const demo = { token: 0, timer: 0, running: false, final: null, log: [], game: null };
 let baseRank = null;
@@ -304,7 +305,7 @@ function hub() {
               </div>
               <div class="row" style="margin-top:14px"><button class="btn primary" type="submit">開始排前十</button></div>
             </form>`}
-          <p class="muted">名單存在各自的瀏覽器。把分享連結貼到群組，朋友才會出現在你的排行榜。</p>
+          <p class="muted">名單存在各自的瀏覽器。把分享連結貼到群組，朋友到齊之後可以對決十個順位、比七項數據，也會在預測榜疊出大家的共識前十。</p>
         </section>
         <section class="panel">
           <h2>想先自己打一季？</h2>
@@ -320,7 +321,7 @@ function shell(body) {
   const board = PX.leaderboard();
   const mine = board.rows.find((row) => row.self);
   const place = board.rows.findIndex((row) => row.self) + 1;
-  const tabs = [["board", "預測榜"], ["picks", "排前十"], ["friends", "朋友"], ["live", "開球"], ["rules", "計分"]];
+  const tabs = [["board", "預測榜"], ["picks", "排前十"], ["friends", "朋友"], ["duel", "對決"], ["live", "開球"], ["rules", "計分"]];
   const score = mine && mine.score.complete ? mine.score.accuracy : "—";
   return `
     <header class="top">
@@ -377,7 +378,8 @@ function viewBoard() {
         </tbody>
       </table></div>
     </section>
-    ${detail(board)}`;
+    ${detail(board)}
+    ${consensusPanel(board)}`;
 }
 function slotRow(index) {
   const id = PX.state.picks[index];
@@ -460,7 +462,7 @@ function viewFriends() {
     <div class="grid two">
       <section class="panel">
         <h2>把預測傳給朋友</h2>
-        <p class="muted">排滿 10 人之後，把整份排行榜連結或繼續檔留在群組裡。之後打開同一份資料，點自己的名字，就會接回原本的前十。這台瀏覽器如果已經有你的名單，新朋友會併進來，不會蓋掉你排好的順序。</p>
+        <p class="muted">排滿 10 人之後，把整份排行榜連結或繼續檔留在群組裡。人都到了，就到對決頁比順位和數據；預測榜也會疊出共識前十。</p>
         ${code ? `
           <label class="field"><span>你的分享碼</span><input type="text" readonly value="${esc(code)}"></label>
           <div class="row" style="margin-top:10px">
@@ -484,6 +486,127 @@ function viewFriends() {
         </div>
       </section>
     </div>`;
+}
+function consensusPanel(board) {
+  const lists = board.rows.filter((row) => row.picks.length);
+  if (lists.length < 2) {
+    return `<section class="panel" style="margin-top:16px"><h2>大家的共識前十</h2><p class="muted">朋友的名單加進來之後，這裡會把所有人的前十疊在一起，看大家一起押了誰。</p></section>`;
+  }
+  const tally = {};
+  lists.forEach((row) => {
+    row.picks.forEach((id, index) => {
+      if (!PX.BY[id]) return;
+      if (!tally[id]) tally[id] = { id, count: 0, rankSum: 0 };
+      tally[id].count += 1;
+      tally[id].rankSum += index + 1;
+    });
+  });
+  const ranked = Object.values(tally).sort((a, b) => b.count - a.count || (a.rankSum / a.count) - (b.rankSum / b.count) || a.id - b.id).slice(0, 10);
+  return `<section class="panel" style="margin-top:16px">
+    <div class="split"><h2>大家的共識前十</h2><span class="muted">${lists.length} 份名單</span></div>
+    <p class="muted">被選次數多的排前面。次數一樣，就看平均名次，越靠前越上面。</p>
+    <div class="consensus">${ranked.map((item, index) => {
+      const player = PX.BY[item.id];
+      const info = DC.teamMeta[player.team] || { name: player.team, color: "#888" };
+      const avg = DreamUI.n1(item.rankSum / item.count);
+      return `<div class="person"><div class="who">${DreamUI.face(player)}<div><b>${index + 1}. ${esc(player.name)}</b><div class="sub">${esc(player.pos)} · ${esc(info.name)} · 平均第 ${avg} 名</div></div></div><span class="tag">${item.count}/${lists.length} 人選</span></div>`;
+    }).join("")}</div>
+  </section>`;
+}
+function duelSide() {
+  if (px.duel && px.duel !== "lastyear") {
+    const friend = PX.state.friends.find((item) => item.code === px.duel);
+    if (friend) return { name: friend.name, picks: friend.picks.slice(), kind: "friend" };
+  }
+  return { name: "上季前十", picks: PX.baseline().slice(0, 10).map((player) => player.id), kind: "lastyear" };
+}
+function slotValue(ids, index) {
+  const id = ids[index];
+  if (!id || !PX.BY[id]) return null;
+  return PX.statOf(id, "fppg");
+}
+function viewDuel() {
+  const mine = PX.state.picks.slice();
+  const opp = duelSide();
+  const ready = mine.length > 0 && opp.picks.length > 0;
+  const slots = Math.max(mine.length, opp.picks.length, ready ? 0 : 0);
+  let homeWins = 0;
+  let awayWins = 0;
+  const series = Array.from({ length: slots }, (_, index) => {
+    const homeId = mine[index];
+    const awayId = opp.picks[index];
+    const home = PX.BY[homeId];
+    const away = PX.BY[awayId];
+    const homeValue = slotValue(mine, index);
+    const awayValue = slotValue(opp.picks, index);
+    let mark = "tie";
+    if (homeValue == null && awayValue == null) mark = "tie";
+    else if (homeValue == null || (awayValue != null && awayValue > homeValue)) { mark = "away"; awayWins += 1; }
+    else if (awayValue == null || homeValue > awayValue) { mark = "home"; homeWins += 1; }
+    const cell = (player, value, side) => {
+      if (!player) return `<div class="series-side ${side}"><span class="muted">空位</span></div>`;
+      return `<div class="series-side ${side} ${mark === side ? "win" : ""}"><div class="who">${DreamUI.face(player)}<div><b>${esc(PX.lastName(player.name))}</b><div class="sub">${esc(player.pos)} · ${DreamUI.n1(value || 0)}</div></div></div></div>`;
+    };
+    return `<div class="series-row ${mark}"><b>${index + 1}</b>${cell(home, homeValue, "home")}${cell(away, awayValue, "away")}</div>`;
+  }).join("");
+  const cats = [
+    ["fppg", "夢幻分"],
+    ["pts", "得分"],
+    ["reb", "籃板"],
+    ["ast", "助攻"],
+    ["stl", "抄截"],
+    ["blk", "阻攻"],
+    ["tpm", "三分"]
+  ];
+  let catHome = 0;
+  let catAway = 0;
+  const catRows = cats.map(([key, label]) => {
+    const homeSum = mine.reduce((sum, id) => sum + PX.statOf(id, key), 0);
+    const awaySum = opp.picks.reduce((sum, id) => sum + PX.statOf(id, key), 0);
+    let mark = "tie";
+    if (homeSum > awaySum) { mark = "home"; catHome += 1; }
+    else if (awaySum > homeSum) { mark = "away"; catAway += 1; }
+    const total = homeSum + awaySum;
+    const width = total > 0 ? Math.max(8, Math.round((homeSum / total) * 100)) : 50;
+    return `<div class="cat-row ${mark}"><b>${DreamUI.n1(homeSum)}</b><div><span>${label}</span><div class="bar"><span style="width:${width}%"></span></div></div><b>${DreamUI.n1(awaySum)}</b></div>`;
+  }).join("");
+  const shared = mine.filter((id) => opp.picks.includes(id) && PX.BY[id]);
+  const note = PX.resultsReady()
+    ? "十戰十勝和夢幻分用的是 2026-27 真實場均。其他六項還是上季數據。"
+    : "現在全部用 2025-26 場均試算。真實數據進來之後，十戰十勝和夢幻分會改算這一季。";
+  return `
+    <section class="panel">
+      <div class="split">
+        <h2>和朋友對決</h2>
+        <label class="field"><span>對手</span>
+          <select id="px-duel">
+            <option value="lastyear" ${px.duel === "lastyear" ? "selected" : ""}>上季前十</option>
+            ${PX.state.friends.map((friend) => `<option value="${esc(friend.code)}" ${px.duel === friend.code ? "selected" : ""}>${esc(friend.name)}</option>`).join("")}
+          </select>
+        </label>
+      </div>
+      <p class="muted">${mine.length ? note : "先排進至少 1 名球員，才能開打。"}</p>
+      ${mine.length ? `
+        <div class="broadcast-bar">
+          <div class="bug-side"><span>${esc(PX.state.name)}</span><b>${homeWins}</b></div>
+          <div class="bug-mid duel-mid"><span>十戰 ${homeWins}-${awayWins}</span><span>七項 ${catHome}-${catAway}</span></div>
+          <div class="bug-side"><span>${esc(opp.name)}</span><b>${awayWins}</b></div>
+        </div>
+        <div class="grid two">
+          <div>
+            <h3>十戰十勝</h3>
+            <p class="muted">同一順位互比場均夢幻分，高的贏這一格。</p>
+            <div class="series">${series}</div>
+          </div>
+          <div>
+            <h3>七項數據</h3>
+            <p class="muted">兩邊名單加總，單項比較高的贏那一項。</p>
+            ${catRows}
+            <h3 style="margin-top:16px">兩邊都選了</h3>
+            ${shared.length ? `<div class="row">${shared.map((id) => `<span class="tag">${esc(PX.lastName(PX.BY[id].name))}</span>`).join("")}</div>` : `<p class="muted">沒有重疊的球員。</p>`}
+          </div>
+        </div>` : ""}
+    </section>`;
 }
 function awayIds() {
   if (px.opponent !== "lastyear") {
@@ -542,13 +665,15 @@ function viewRules() {
       <p>現在看到的是上季試算：把 2025-26 的名次套進同一套公式。2026 新秀和上季沒出賽的人，試算是 0 分，要等真實數據才會計進正式排名。火力欄是這 10 人的場均夢幻積分加總，不決定名次。</p>
       <h2>和朋友一起玩</h2>
       <p>這個網站沒有中央伺服器。你的名單在自己的瀏覽器，朋友的名單要靠分享碼或連結加進來。資料更新、正式結算之前，先把想比的人都加進榜；結算之後就不能再補交新預測。</p>
+      <p>對決有兩種比法。十戰十勝是你的第 1 名對他的第 1 名，一路比到第 10 名，場均夢幻分高的人贏那一格。七項數據是兩邊前十的得分、籃板、助攻、抄截、阻攻、三分和夢幻分加總，單項高的贏那一項。還沒有朋友時，對手是上季夢幻分前十。預測榜下方的共識前十，是把所有人的名單疊起來，看大家一起押了誰。</p>
+      <p>這些對決現在用 2025-26 的場均試算。真實數據進來之後，十戰十勝和夢幻分那一項會改用 2026-27 的成績。</p>
       <h2>場上那顆球</h2>
       <p>開球預告片會把你的前五放到球場上，依上季得分、命中率和抄截阻攻編成十幾個攻防回合。那是開季畫面，不是預測本身的分數。</p>
     </section>`;
 }
 function view() {
   if (!PX.state) return hub();
-  const pages = { board: viewBoard, picks: viewPicks, friends: viewFriends, live: viewLive, rules: viewRules };
+  const pages = { board: viewBoard, picks: viewPicks, friends: viewFriends, duel: viewDuel, live: viewLive, rules: viewRules };
   return shell((pages[px.tab] || viewBoard)());
 }
 function placeBall(x, y) {
@@ -761,6 +886,7 @@ function onChange(event) {
     reader.readAsText(file);
     return;
   }
+  if (event.target.id === "px-duel") { px.duel = event.target.value; DreamUI.render(); return; }
   if (event.target.id === "px-sort") { px.sort = event.target.value; DreamUI.render(); return; }
   if (event.target.id === "px-opp") {
     px.opponent = event.target.value;

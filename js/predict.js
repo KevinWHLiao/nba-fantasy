@@ -55,12 +55,18 @@ const PX = (() => {
     if (actual <= 40) return 8;
     return 0;
   }
-  function production(id, official) {
+  function production(id) {
     const player = BY[id];
     if (!player) return 0;
-    if (!official) return player.fppg;
+    if (!resultsReady()) return player.fppg;
     const live = actualOf(player);
     return live ? live.fppg : 0;
+  }
+  function statOf(id, key) {
+    const player = BY[id];
+    if (!player) return 0;
+    if (key === "fppg") return production(id);
+    return Number(player[key]) || 0;
   }
   function scoreList(picks, official) {
     const ranks = rankMap(!!official);
@@ -71,7 +77,7 @@ const PX = (() => {
       const predicted = index + 1;
       const actual = ranks[id];
       const got = pointsFor(predicted, actual);
-      const fppg = production(id, official);
+      const fppg = production(id);
       accuracy += got;
       power += fppg;
       if (actual != null && actual <= 10) hits += 1;
@@ -384,7 +390,7 @@ const PX = (() => {
     NEED, HOME_SPOTS, AWAY_SPOTS, HOOP,
     load, create, adopt, reset, save, add, remove, move, lock, unlock, frozen,
     addFriend, removeFriend, encode, decode, normalize, parseLeague, exportLeague, readShare,
-    scoreList, leaderboard, baseline, contrastIds, resultsReady, resultsLabel,
+    scoreList, leaderboard, baseline, contrastIds, resultsReady, resultsLabel, statOf,
     exhibition, initials, lastName, ink, BY
   };
 })();
